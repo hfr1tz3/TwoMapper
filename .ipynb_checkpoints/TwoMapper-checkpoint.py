@@ -40,7 +40,7 @@ def graph_2Mapper(mapper_graph, simplicial_complex):
 
 'Creates a dictionary of all 2-simplices in the 2-dimensional nerve of simplicial_complex.'
 'This can most likely be simplified if we auto specify a 2-dimensional mapper'
-def find_triangle(kmgraph):
+def find_triangles(kmgraph):
     tri = {'triangles': []}
     candidates = combinations(kmgraph['nodes'],3)
     for i, candidate in enumerate(candidates):
