@@ -34,7 +34,7 @@ def graph_2Mapper(mapper_graph, simplicial_complex):
     traces = find_traces(Tri, kmgraph)
     
     for i in range(len(list(traces))):
-        mapper_graph.add_trace(traces[f'traces{i}'])
+        mapper_graph.add_trace(traces[f'trace{i}'])
     return mapper_graph
 
 
