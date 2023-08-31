@@ -4,10 +4,6 @@ from functools import reduce
 from operator import iconcat
 import plotly
 from gtda.mapper.utils._visualization import _get_colors_for_vals
-import gtda.mapper.cover
-#(_find_interval_limits,_cover_limits, _limits_from_ranks)
-from gtda.mapper.utils._cover import _remove_empty_and_duplicate_intervals, _check_has_one_column
-
 
 """ Compute higher order simplices from refined Mapper cover to produce a 2Mapper graph.
     Returns 
@@ -21,7 +17,11 @@ from gtda.mapper.utils._cover import _remove_empty_and_duplicate_intervals, _che
 # Can we make this a dictionary?
 
 def two_dim_nerve(graph, intersection_data = False):
-    node_triples = combinations(graph.vs(),3)
+    high_degree_vertices = list(filter(lambda x: x.degree() > 1, 
+                                       graph.vs()
+                                      )
+                               )
+    node_triples = combinations(high_degree_vertices,3)
     simplex_list = list()
     intersections = list()
     for triple in node_triples:
@@ -51,17 +51,22 @@ def two_dim_nerve(graph, intersection_data = False):
         its bounding nodes have nonzero intersection.
 
 """
-def two_mapper(graph, figure, fancy_output = False):
+def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
     if type(figure.data[0]) != plotly.graph_objs._scatter3d.Scatter3d:
         raise ValueError("layout_dim must equal 3 to produce 2Mapper graph")
-    if fancy_output == True:
+        
+    if fancy_edges == True:
         edge_weights = dict(list())
         for i,weight in enumerate(graph.es['weight']):
             if weight not in edge_weights.keys():
                 edge_weights[weight] = [i]
             else:
                 edge_weights[weight].append(i)
-        simplex_list, simplex_intersections = two_dim_nerve(graph, intersection_data = True)
+                
+    if fancy_simplices == True:
+        simplex_list, simplex_intersections = two_dim_nerve(graph,
+                                                            intersection_data = True
+                                                           )
         opacities = dict(list())
         for i, intersection_value in enumerate(simplex_intersections):
             if intersection_value not in opacities.keys():
@@ -69,13 +74,12 @@ def two_mapper(graph, figure, fancy_output = False):
             else:
                 opacities[intersection_value].append(i)
     else:
-        simplex_list = two_dim_nerve(graph)
-    
-    node_pos = np.asarray(graph.layout('kk3d', dim = 3).coords)
-    i = [simplex_list[x][0].index for x in range(len(simplex_list))]
-    j = [simplex_list[x][1].index for x in range(len(simplex_list))]
-    k = [simplex_list[x][2].index for x in range(len(simplex_list))]
-    
+        simplex_list = two_dim_nerve(graph) 
+        i = [simplex_list[x][0].index for x in range(len(simplex_list))]
+        j = [simplex_list[x][1].index for x in range(len(simplex_list))]
+        k = [simplex_list[x][2].index for x in range(len(simplex_list))]
+        
+    node_pos = np.asarray(graph.layout('kk3d', dim = 3).coords)   
     node_colors = figure.data[1].marker.color
     node_colorscale = figure.data[1].marker.colorscale
     face_color_vals = [np.mean([node_colors[x[0].index],
@@ -87,13 +91,46 @@ def two_mapper(graph, figure, fancy_output = False):
                                    vmax = np.max(node_colors),
                                    colorscale = node_colorscale,
                                    return_hex = True)
-    if fancy_output == True:
+    if ((fancy_simplices == True) and (fancy_edges == True)):
         fancy_figure = plotly.graph_objects.FigureWidget(layout = figure.layout)
-        #for weight in edge_weights:
-            
         
+        # We first want to add the 2-simplicies with varying opacities
+        for opacity in opacities:
+            f = _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors, node_colorscale)
+            fancy_figure.add_trace(f)
+        # We then add the edges with varying line weights
+        # Note we cannot change the color of each edge due to limitations 
+        # in Plotly.
+        # If we wanted to do this we would need a trace for each edge color.
+        for weight in edge_weights:
+            f = _lineweight_trace(weight, edge_weights, figure)
+            fancy_figure.add_trace(f)
 
-        
+        # Add the node trace from the original figure
+        fancy_figure.add_trace(figure.data[1])
+        return fancy_figure
+    
+    elif ((fancy_simplices == True) and (fancy_edges == False)):
+        fancy_figure = plotly.graph_objects.FigureWidget(layout = figure.layout)
+        for opacity in opacities:
+            f = _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors, node_colorscale)
+            fancy_figure.add_trace(f)
+        fancy_figure.add_traces([figure.data[0], figure.data[1]])
+        return fancy_figure
+    
+    elif ((fancy_simplices == False) and (fancy_edges == True)):
+        fancy_figure = plotly.graph_objects.FigureWidget(layout = figure.layout)
+        for weight in edge_weights:
+            f = _lineweight_trace(weight, edge_weights, figure)
+            fancy_figure.add_trace(f)
+        simplex_trace = plotly.graph_objects.Mesh3d(x=node_pos[:,0], y=node_pos[:,1], z=node_pos[:,2],
+                          i=i, j=j, k=k,
+                          facecolor = face_colors, 
+                          colorscale = node_colorscale,
+                          name = 'simplex_trace',
+                          legendrank = 2000
+                         )
+        fancy_figure.add_traces([simplex_trace, figure.data[1]])
         return fancy_figure
         
     else:
@@ -101,54 +138,43 @@ def two_mapper(graph, figure, fancy_output = False):
                           i=i, j=j, k=k,
                           facecolor = face_colors, 
                           colorscale = node_colorscale,
-                          name = 'simplex_trace'
-                          #intensity = intersections,
-                          #intensitymode = "cell"
+                          name = 'simplex_trace',
+                          legendrank = 2000
                          )
         return figure
-
-    ''' Intensity could be a scale for face colors, however
-    it doesn't really work.
-    Opacity scales the entire trace so unusable.
-    THINK AbOUT ADDING FACTORS WHERE WE ADD TRACES BASED
-    ON OPACITY AND INTERSECTION VALUES
-    This will drastically increase run time, but things will
-    look nicer.
-    '''
         
-#def _lineweight_trace():
-
-#def _opacity_trace():
+def _lineweight_trace(weight, edge_weights, figure):
+    f = dict()
+    f['hoverinfo'] = 'none'
+    f['mode'] = 'lines'
+    f['line'] = {'color': '#888',
+                 'width': weight} 
+    f['name'] = f'edge_trace_weight_{weight}'
+    f['legendrank'] = 1500
+    f['x'] = list()
+    f['y'] = list()
+    f['z'] = list()
+    for edge in edge_weights[weight]:
         
-        
-def circle_cover(data):
-    
-    return cover
+        f['x'].extend(figure.data[0]['x'][3*edge:3*edge+3])
+        f['y'].extend(figure.data[0]['y'][3*edge:3*edge+3])
+        f['z'].extend(figure.data[0]['z'][3*edge:3*edge+3])
 
-'Code inspired by Leigh Foster'
-def tri_lattice(a, b, c, shift_factor = (0,0)):
-    factor = float(np.sqrt(3)/2)
-    # makes the height and width of the whole grid too big to start
-    # if you want the hex lattice to be on a square, just change height and width
-    height = 2*c + a + b
-    width = int(1.5*(a + b)+1)
-    
-    # creates whole grid of hex points
-    vertex_list = []
-    for i in range(-width,width+1):
-        for j in range(-height, height):
-            # shifts every other row left by 1.5
-            if j % 2 == 1:
-                if i % 3 == 2:
-                    vertex_list.append([i - 3/2, j*factor])
-            elif i % 3 == 2:
-                vertex_list.append([i, j*factor])
-    x_vals = [vertex_list[i][0] for i in range(len(vertex_list))]
-    y_vals = [vertex_list[i][1] for i in range(len(vertex_list))]
-    # shifts the set of vertices down and right so the whole graph is drawn on screen
-    shifted_list = []
-    for vertex in vertex_list:
-        shifted_list.append([vertex[0] - min(x_vals) + 0.5 + shift_factor[0], vertex[1] - min(y_vals) + 0.5 + shift_factor[1]])
-    shifted_list = np.asarray(shifted_list)
+    return plotly.graph_objects.Scatter3d(f)
 
-    return shifted_list
+def _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors,
+                   node_colorscale):  
+    f = dict()
+    f['i'] = [simplex_list[x][0].index for x in opacities[opacity]]
+    f['j'] = [simplex_list[x][1].index for x in opacities[opacity]]
+    f['k'] = [simplex_list[x][2].index for x in opacities[opacity]]
+    f['x'] = node_pos[:,0]
+    f['y'] = node_pos[:,1]
+    f['z'] = node_pos[:,2]
+    f['facecolor'] = [face_colors[x] for x in opacities[opacity]]
+    f['colorscale'] = node_colorscale
+    f['name'] = f'simplex_trace_opacity_{opacity}'
+    f['opacity'] = float((opacity-min(opacities))/(max(opacities)-min(opacities)))
+    f['legendrank'] = 2000
+                         
+    return plotly.graph_objects.Mesh3d(f)
