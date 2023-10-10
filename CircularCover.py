@@ -28,9 +28,10 @@ class CircularCover(BaseEstimator, TransformerMixin):
     coord2_limits_ : ndarray of shape (2,)
         Limits of the bounding box on the coord2 (y) axis computed in :meth: `fit`.
     
-    ball_centers_ : ndarray (shape (n_intervals*??,)) 
+    ball_centers_ : ndarray of shape #Not exactly correct
+    (n_intervals*(2*n_intervals/3)*(coord2_limits_[1]-coord2_limits_[0])/(coord1_limits_[1]-coord1_limits_[0]),)
         Centers of every ball in the cover. The number of balls in the cover are
-        dependent on `overlap_frac`, `n_intervals`, coord1_limits_, and coord2_limits_
+        dependent on `overlap_frac`, `n_intervals`, `coord1_limits_`, and `coord2_limits_`
     
     ball_radius_ : float
         The radius for each ball in the circular cover.
@@ -67,13 +68,21 @@ class CircularCover(BaseEstimator, TransformerMixin):
             fitter = self._fit_uniform 
         return fitter(X)
     
+    # def _transform(self, X):
+    #     Xt = []
+    #     for data in X:
+    #         dist_bools = [np.linalg.norm(data-center) < self.ball_radius_ for center in self.ball_centers_]
+    #         Xt.append(dist_bools)
+    #     Xt = np.asarray(Xt)
+    #     return Xt
+    
     def _transform(self, X):
-        Xt = []
-        for data in X:
-            dist_bools = [np.linalg.norm(data-center) < self.ball_radius_ for center in self.ball_centers_]
-            Xt.append(dist_bools)
-        Xt = np.asarray(Xt)
-        return Xt
+        data_vec = np.repeat([X], self.ball_centers_.shape[0], axis = 1).reshape(
+            (X.shape[0], self.ball_centers_.shape[0], 2)
+        )
+        ball_vec = np.repeat([self.ball_centers_], X.shape[0], axis = 0)
+        data_bools = np.linalg.norm(data_vec - ball_vec, axis = 2) < self.ball_radius_
+        return data_bools
     
     def transform(self, X, y=None):
         check_is_fitted(self)
@@ -135,8 +144,8 @@ class CircularCover(BaseEstimator, TransformerMixin):
         even_center_list = np.vstack(list(zip(xeven.ravel(), yeven.ravel())))
         
         # Find ball centers on the odd rows of the lattice
-        odd_rows = np.arange(x_min, x_max + x_len, x_len)
-        odd_cols = np.arange(y_min + y_len, y_max + y_len, 2*y_len)
+        odd_rows = np.arange(start = x_min, stop = x_max + x_len, step = x_len)
+        odd_cols = np.arange(start = y_min + y_len, stop = y_max + y_len, step = 2*y_len)
         xodd, yodd = np.meshgrid(odd_rows, odd_cols)
         odd_center_list = np.vstack(list(zip(xodd.ravel(),yodd.ravel())))
         
