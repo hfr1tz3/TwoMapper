@@ -66,12 +66,20 @@ def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
     if fancy_simplices is True:
         simplex_list, simplex_intersections = two_dim_nerve(graph, intersection_data = True)
         opacities = dict(list())
-        for i, intersection_value in enumerate(simplex_intersections):
+        # for i, intersection_value in enumerate(simplex_intersections):
+        #     if intersection_value not in opacities.keys():
+        #         opacities[intersection_value] = [i]
+        #     else:
+        #         opacities[intersection_value].append(i)
+        for intersection_value in set(simplex_intersections):
             if intersection_value not in opacities.keys():
-                opacities[intersection_value] = [i]
+                simplices = np.argwhere(
+                    np.asarray(simplex_intersections) == intersection_value
+                )
+                opacities[intersection_value] = list(simplices.reshape(len(simplices),))
             else:
-                opacities[intersection_value].append(i)
-    else:
+                continue
+                
         simplex_list = two_dim_nerve(graph)
         i = [-1] * int(len(simplex_list))
         j = [-1] * int(len(simplex_list))
