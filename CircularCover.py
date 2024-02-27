@@ -68,14 +68,6 @@ class CircularCover(BaseEstimator, TransformerMixin):
             fitter = self._fit_uniform 
         return fitter(X)
     
-    # def _transform(self, X):
-    #     Xt = []
-    #     for data in X:
-    #         dist_bools = [np.linalg.norm(data-center) < self.ball_radius_ for center in self.ball_centers_]
-    #         Xt.append(dist_bools)
-    #     Xt = np.asarray(Xt)
-    #     return Xt
-    
     def _transform(self, X):
         data_vec = np.repeat([X], self.ball_centers_.shape[0], axis = 1).reshape(
             (X.shape[0], self.ball_centers_.shape[0], 2)
