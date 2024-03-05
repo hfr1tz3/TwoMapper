@@ -79,7 +79,7 @@ def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
                 opacities[intersection_value] = list(simplices.reshape(len(simplices),))
             else:
                 continue
-                
+    if fancy_simplices is False:         
         simplex_list = two_dim_nerve(graph)
         i = [-1] * int(len(simplex_list))
         j = [-1] * int(len(simplex_list))
@@ -184,7 +184,10 @@ def _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors,
     f['z'] = node_pos[:,2]
     f['colorscale'] = node_colorscale
     f['name'] = f'simplex_trace_opacity_{opacity}'
-    f['opacity'] = float((opacity-min(opacities))/(max(opacities)-min(opacities)))
+    if len(opacities) > 1:
+        f['opacity'] = float((opacity-min(opacities))/(max(opacities)-min(opacities)))
+    if len(opacities) == 1:
+        f['opacity'] = 1
     f['legendrank'] = 2000                     
     return plotly.graph_objects.Mesh3d(f)
 
