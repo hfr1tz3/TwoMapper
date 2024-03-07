@@ -66,22 +66,34 @@ class LatticeCover(BaseEstimator, TransformerMixin):
         X = check_array(X)
         validate_params(self.get_params(), self._hyperparameters)
         if self.overlap_frac <= 1e-8:
-            warmings.warm("`overlap_frac` is close to zero, "
+            warmings.warn("`overlap_frac` is close to zero, "
                           "which might cause numerical issues and errors.",
                           RuntimeWarning)
         fitter = self._fit
         return fitter(X)
 
+    def _transform_data(self, X):
+        data_bools = np.full((self.ball_centers_.shape[0]), False)
+        for i in range(X.shape[0]):
+            cover_check = np.linalg.norm(self.ball_centers_ - X[i], axis = 1) < self.ball_radius_
+            if np.any(cover_check):
+                data_bools = np.vstack([data_bools, cover_check])
+        return data_bools[1:]
+            
+    def _transform_centers(self, X):
+        cover_bools = np.full((X.shape[0],), False)
+        for i in range(self.ball_centers_.shape[0]):
+            cover_check = np.linalg.norm(X - self.ball_centers_[i], axis = 1) < self.ball_radius_
+            if np.any(cover_check):
+                cover_bools = np.vstack([cover_bools, cover_check])
+        data_bools = cover_bools[1:].T
+        return data_bools
+        
     def _transform(self, X):
-        data_vec = np.repeat([X], self.ball_centers_.shape[0], axis = 1)
-        if self.special:
-            data_vec = data_vec.reshape(
-                (X.shape[0], self.ball_centers_.shape[0], self.dim))
-        if self.special is False:
-            data_vec = data_vec.reshape(
-                (X.shape[0], self.ball_centers_.shape[0], self.dim + 1))
-        ball_vec = np.repeat([self.ball_centers_], X.shape[0], axis = 0)
-        data_bools = np.linalg.norm(data_vec - ball_vec, axis =2) < self.ball_radius_
+        if self.ball_centers_.shape[0] < X.shape[0]:
+            data_bools = self._transform_data(X)
+        if X.shape[0] < self.ball_centers_.shape[0]:
+            data_bools = self._transform_centers(X)
         return data_bools
 
     def transform(self, X, y=None):
@@ -106,8 +118,8 @@ class LatticeCover(BaseEstimator, TransformerMixin):
         return Xt
 
     def _check_dim(self, X):
-        if X.shape[1] > 8:
-            warnings.warn("Using an incredibly high dimensional (dim {X.shape[1]}) cover?? Dont.")
+        if X.shape[1] > 5:
+            warnings.warn("Using an incredibly high dimensional (dim {X.shape[1]}) can be dangerous; Kernel destroying, in fact. Proceed with Caution")
         return X.shape[1]
     
     'Embeds our data X\sub R^{dim} \righthookarrow R^{dim+1}'
@@ -135,9 +147,6 @@ class LatticeCover(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def _get_generator_matrix(dim, special):
-        if dim < 2:
-            raise ValueError(f'Lattice Cover can only be computed with filters with dimension 2 or greater, {dim} entered')
-            ## CHANGE ABOVE TO WORK FOR DIM 1 ##
         if dim == 2 and special:
             basis_vectors = np.array([1,0,-1/2,np.sqrt(3)/2]).reshape((2,2))
         if dim == 3 and special:
@@ -160,7 +169,7 @@ class LatticeCover(BaseEstimator, TransformerMixin):
         ldim = generating_matrix.shape[1]
         assert left_limits.shape[0] == right_limits.shape[0] == ldim
         bound_vector = np.abs(right_limits - left_limits)
-        scale = np.max([np.mean(bound_vector/n_intervals), 1])
+        scale = np.max([np.max(bound_vector/n_intervals), 1])
         # Create bounds for lattice points
         scaled_min_bound, scaled_max_bound = np.zeros(dim), np.zeros(dim)
         scaled_min_bound[:dim-1] = np.asarray([np.floor((left_limits[dim] - right_limits[j+1])/scale) for j in range(dim-1)])
