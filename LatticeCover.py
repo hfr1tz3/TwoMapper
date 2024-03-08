@@ -92,7 +92,7 @@ class LatticeCover(BaseEstimator, TransformerMixin):
     def _transform(self, X):
         if self.ball_centers_.shape[0] < X.shape[0]:
             data_bools = self._transform_data(X)
-        if X.shape[0] < self.ball_centers_.shape[0]:
+        if X.shape[0] <= self.ball_centers_.shape[0]:
             data_bools = self._transform_centers(X)
         return data_bools
 

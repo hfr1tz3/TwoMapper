@@ -14,6 +14,12 @@ from gtda.mapper.utils._visualization import _get_colors_for_vals
     the ::class:: `i.graph.Vertex` object generated from the `fit_transform` method.
 """
 
+def find_2simplices(graph, intersection_data = False):
+    node_triples = graph.list_triangles()
+    num_triples = len(node_triples)
+    simp
+    return None
+
 def two_dim_nerve(graph, intersection_data = False):
     high_degree_vertices = list(filter(lambda x: x.degree() > 1, 
                                        graph.vs()
