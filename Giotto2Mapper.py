@@ -6,46 +6,37 @@ import plotly
 from math import factorial
 from gtda.mapper.utils._visualization import _get_colors_for_vals
 
-""" Compute higher order simplices from refined Mapper cover to produce a 2Mapper graph.
+""" Compute two-dimensional simplices from refined Mapper cover to produce a 2Mapper graph.
     Returns 
     --------
-    List of 2 simplices for 2Mapper graph. 
-    Each 2 simplex is a list, where each entry is a node from 
-    the ::class:: `i.graph.Vertex` object generated from the `fit_transform` method.
+    List of tuples (n,m,k) representing the vertices to a 2-simplex.
+    Each entry in the tuple the index of a ::class:: `i.graph.Vertex` object 
+    generated from the `fit_transform` method.
+
+    Array of length (number of 2-simplices,) which contains the
+    number of data points in the 2-simplex at the corresponding index.
 """
 
-def find_2simplices(graph, intersection_data = False):
+def list_2simplices(graph, intersection_data = False):
     node_triples = graph.list_triangles()
     num_triples = len(node_triples)
-    simp
-    return None
-
-def two_dim_nerve(graph, intersection_data = False):
-    high_degree_vertices = list(filter(lambda x: x.degree() > 1, 
-                                       graph.vs()
-                                      )
-                               )
-    node_triples = combinations(high_degree_vertices,3)
-    num_triples = int(factorial(len(high_degree_vertices))/(factorial(3) * factorial(len(high_degree_vertices) - 3)))
-    simplex_list = [None] * num_triples
-    simplex_mask = [False] * num_triples
+    simplex_list = [None] * (num_triples+1)
+    simplex_mask = [False] * (num_triples+1)
     intersections = np.zeros(num_triples)
     for i, triple in enumerate(node_triples):
-        intersection = reduce(np.intersect1d,(triple[0]['node_elements'],
-                                              triple[1]['node_elements'],
-                                              triple[2]['node_elements']
-                                             )
+        intersection = reduce(np.intersect1d, 
+                              graph.vs[triple]['node_elements']
                              )
         if len(intersection) > 0:
             simplex_mask[i] = True
-            simplex_list[i] = ([triple[0], triple[1], triple[2]])
-            if intersection_data is True:
+            simplex_list[i] = triple
+            if intersection_data:
                 intersections[i] = len(intersection)
     simplex_list = list(compress(simplex_list, simplex_mask))
-    if intersection_data is True:
+    if intersection_data:
         nonzero_intersections = intersections[intersections > 0]
         return simplex_list, nonzero_intersections
-    else:
+    if intersection_data is False:
         return simplex_list
 
 """ Display the 2Mapper graph for a 3-dimensional Mapper graph produced in giotto-tda.
@@ -58,11 +49,14 @@ def two_dim_nerve(graph, intersection_data = False):
         its bounding nodes have nonzero intersection.
 
 """
-def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
-    if type(figure.data[0]) != plotly.graph_objs._scatter3d.Scatter3d:
+def two_mapper(fancy_edges = False, fancy_simplices = False, **mapper_figure_dict):
+    if mapper_figure_dict['layout_dim'] != 3:
         raise ValueError("layout_dim must equal 3 to produce 2Mapper graph")
+    graph = mapper_figure_dict['pipeline'].fit_transform(data)
+    figure = plot_static_mapper_graph(**mapper_figure_dict)
     # Fancy edges makes the graph look clunky
     if fancy_edges is True:
+        warnings.warn('fancy_edges can cause visually clunky graphs. Proceed with caution.', RuntimeWarning)
         edge_weights = dict(list())
         for i,weight in enumerate(graph.es['weight']):
             if weight not in edge_weights.keys():
@@ -70,13 +64,8 @@ def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
             else:
                 edge_weights[weight].append(i)             
     if fancy_simplices is True:
-        simplex_list, simplex_intersections = two_dim_nerve(graph, intersection_data = True)
+        simplex_list, simplex_intersections = list_2simplices(graph, intersection_data = True)
         opacities = dict(list())
-        # for i, intersection_value in enumerate(simplex_intersections):
-        #     if intersection_value not in opacities.keys():
-        #         opacities[intersection_value] = [i]
-        #     else:
-        #         opacities[intersection_value].append(i)
         for intersection_value in set(simplex_intersections):
             if intersection_value not in opacities.keys():
                 simplices = np.argwhere(
@@ -86,15 +75,16 @@ def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
             else:
                 continue
     if fancy_simplices is False:         
-        simplex_list = two_dim_nerve(graph)
-        i = [-1] * int(len(simplex_list))
-        j = [-1] * int(len(simplex_list))
-        k = [-1] * int(len(simplex_list))
-        for x in range(len(simplex_list)):
-            i[x] = simplex_list[x][0].index
-            j[x] = simplex_list[x][1].index
-            k[x] = simplex_list[x][2].index
-    node_pos = np.asarray(graph.layout('kk3d', dim = 3).coords)   
+        simplex_list = list_2simplices(graph)
+        num_simplices = len(simplex_list)
+        i = np.full(num_simplices, -1)
+        j = np.full(num_simplices, -1)
+        k = np.full(num_simplices, -1)
+        for x in range(num_simplices):
+            i[x] = simplex_list[x][0]
+            j[x] = simplex_list[x][1]
+            k[x] = simplex_list[x][2]
+    node_pos = np.asarray(graph.layout(mapper_figure_dict['layout'], dim = 3).coords)   
     node_colors = figure.data[1].marker.color
     node_colorscale = figure.data[1].marker.colorscale
     face_color_vals = _get_simplex_colors(node_colors, simplex_list)
@@ -152,7 +142,8 @@ def two_mapper(graph, figure, fancy_edges = False, fancy_simplices = False):
                           facecolor = face_colors, 
                           colorscale = node_colorscale,
                           name = 'simplex_trace',
-                          legendrank = 2000
+                          legendrank = 2000,
+                          opacity = 0.7
                          )
         return figure
         
@@ -176,14 +167,14 @@ def _lineweight_trace(weight, edge_weights, figure):
 def _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors,
                    node_colorscale):  
     f = dict()
-    f['i'] = [-1] * int(len(opacities[opacity]))
-    f['j'] = [-1] * int(len(opacities[opacity]))
-    f['k'] = [-1] * int(len(opacities[opacity]))
+    f['i'] = np.full(len(opacities[opacity]), -1)
+    f['j'] = np.full(len(opacities[opacity]), -1)
+    f['k'] = np.full(len(opacities[opacity]), -1)
     f['facecolor'] = ['a'] * int(len(opacities[opacity]))
     for i, x in enumerate(opacities[opacity]):
-        f['i'][i] = simplex_list[x][0].index
-        f['j'][i] = simplex_list[x][1].index
-        f['k'][i] = simplex_list[x][2].index
+        f['i'][i] = simplex_list[x][0]
+        f['j'][i] = simplex_list[x][1]
+        f['k'][i] = simplex_list[x][2]
         f['facecolor'][i] = face_colors[x]
     f['x'] = node_pos[:,0]
     f['y'] = node_pos[:,1]
@@ -198,11 +189,11 @@ def _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors,
     return plotly.graph_objects.Mesh3d(f)
 
 def _get_simplex_colors(node_colors, simplex_list):
-    face_color_vals = [-1] * int(len(simplex_list))
+    face_color_vals = np.full(len(simplex_list), -1)
     for i, x in enumerate(simplex_list):
         face_color_vals[i] = np.mean(
-            [node_colors[x[0].index],
-            node_colors[x[1].index],
-            node_colors[x[2].index]]
+            [node_colors[x[0]],
+            node_colors[x[1]],
+            node_colors[x[2]]]
         )
     return face_color_vals
