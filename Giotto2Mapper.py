@@ -39,13 +39,13 @@ def list_2simplices(graph, intersection_data = False):
     if intersection_data is False:
         return simplex_list
 
-""" Display the 2Mapper graph for a 3-dimensional Mapper graph produced in giotto-tda.
+""" Display the 2Mapper graph for a Mapper graph with 3 dimensional layout produced in giotto-tda.
     Input : graph : `i.graph`
     Returns
     --------
     graph : :class: `plotly.graph_objs._figurewidget.FigureWidget` object
         Undirected 2Mapper graph according to the two-dimensional nerve computed with
-        the `two_dim_nerve` method. Each triangle in the 3d mesh is a 2-simplex where 
+        the `list_2simplices` method. Each triangle in the 3d mesh is a 2-simplex where 
         its bounding nodes have nonzero intersection.
 
 """
@@ -117,6 +117,7 @@ def two_mapper(fancy_edges = False, fancy_simplices = False, **mapper_figure_dic
         for opacity in opacities:
             f = _opacity_trace(opacity, opacities, simplex_list, node_pos, face_colors, node_colorscale)
             fancy_figure.add_trace(f)
+        # Add the edge and node trace from the original figure
         fancy_figure.add_traces([figure.data[0], figure.data[1]])
         return fancy_figure
     
