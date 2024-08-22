@@ -1,6 +1,6 @@
 import numpy as np
 import plotly
-from gtda.mapper.utils._visualization import _get_colors_for_vals
+import networkx as nx
 
 """ From a standard mapper graph computed using gtda.mapper, comute a directed graph as follows:
 
@@ -27,7 +27,13 @@ For edges in $E$ which do not meet this condition we will include them in $\tild
 
 def find_temporal_edges(graph):
     num_edges = len(graph.es)
-    directed_edges = np.full(num_edges, len(graph.es), dtype=bool)
+    # boolean vector describe if an edge is directed or not
+    directed_edges = np.full(num_edges, False, dtype=bool)
+    # direction of the edge: 
+    # 0: double edge (source <--> target)
+    # 1: source --> target
+    # -1: source <-- target
+    edge_directions = np.full(num_edges, 0, dtype=int)
     edge_elements = 'edge_elements' in graph.es.attributes()
     for edge in graph.es():
         source_data = graph.vs[edge.source]['node_elements']
@@ -35,7 +41,6 @@ def find_temporal_edges(graph):
         if edge_elements:
             edge['edge_elements'].sort()
             intersection_data = edge['edge_elements']
-            
         if not edge_elements:
             intersection_data = np.intersect1d(source_data, target_data)
         # if two consecutive points are in an edge
@@ -45,6 +50,7 @@ def find_temporal_edges(graph):
             e.sort()
             if np.any(np.diff(e) == 1):
                 directed_edges[edge.index] = True
+                
                 continue
         else:
         # Data point in the intersection of 2 nodes.
@@ -60,6 +66,44 @@ def find_temporal_edges(graph):
                     directed_edges[edge.index] = True
                     continue
     return directed_edges
+
+"""
+Find trajectories between nodes using the temporally witnessed graph.
+We do so by constructing directed graph where directed edges are formed from 
+edges that 'witness time' via the method ::meth::`find_temporal_edges`.
+We find trajectories by traversing the highest weight path of a given starting
+point. We default choose the node in the mapper graph of the highest density
+(contains the most data points).
+
+    Input
+    -------
+    graph: `igraph.Graph` object.
+    starting_point: int.
+        Data point to start the trajectory. Integer should represent the 
+        argument of the dataset which contains the starting point.
+        This point should be contained somewhere in the mapper graph.
+
+    Reutrns
+    --------
+    List of nodes in graph in the trajectory.
+
+"""
+def find_trajectories(graph, starting_point):
+    temporal_mask = find_temporal_edges(graph)
+    temporal_edges = np.arange(len(graph.es))[temporal_mask]
+    return None
+
+"""
+Find cycles of a temporal mapper graph. Do so by finding paths between all pairs of points.
+Combine this paths, ie. shortest path x->y + shortest path y->x. If this cycle is simple then 
+it is considered a 'cycle'.
+
+NEED TO ADD A DIRECTION FUNCTION TO THE TEMPORAL ONE SO WE CAN PAY ATTENTION TO DIRECTION
+NOT JUST 'IT IS DIRECTED'.
+
+"""
+def find_cycles(graph):
+    return None
 
 def _edgecolor_trace(edge_mask, figure):
     directed_edges = np.flatnonzero(edge_mask)

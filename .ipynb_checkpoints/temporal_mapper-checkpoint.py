@@ -1,6 +1,6 @@
 import numpy as np
 import plotly
-from gtda.mapper.utils._visualization import _get_colors_for_vals
+import networkx as nx
 
 """ From a standard mapper graph computed using gtda.mapper, comute a directed graph as follows:
 
@@ -60,6 +60,42 @@ def find_temporal_edges(graph):
                     directed_edges[edge.index] = True
                     continue
     return directed_edges
+
+"""
+Find trajectories between nodes using the temporally witnessed graph.
+We do so by constructing directed graph where directed edges are formed from 
+edges that 'witness time' via the method ::meth::`find_temporal_edges`.
+We find trajectories by traversing the highest weight path of a given starting
+point. We default choose the node in the mapper graph of the highest density
+(contains the most data points).
+
+    Input
+    -------
+    graph: `igraph.Graph` object.
+    starting_point: int.
+        Data point to start the trajectory. Integer should represent the 
+        argument of the dataset which contains the starting point.
+        This point should be contained somewhere in the mapper graph.
+
+    Reutrns
+    --------
+    List of nodes in graph in the trajectory.
+
+"""
+def find_trajectories(graph, starting_point):
+    return None
+
+"""
+Find cycles of a temporal mapper graph. Do so by finding paths between all pairs of points.
+Combine this paths, ie. shortest path x->y + shortest path y->x. If this cycle is simple then 
+it is considered a 'cycle'.
+
+NEED TO ADD A DIRECTION FUNCTION TO THE TEMPORAL ONE SO WE CAN PAY ATTENTION TO DIRECTION
+NOT JUST 'IT IS DIRECTED'.
+
+"""
+def find_cycles(graph):
+    return None
 
 def _edgecolor_trace(edge_mask, figure):
     directed_edges = np.flatnonzero(edge_mask)
