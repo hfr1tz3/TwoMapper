@@ -4,41 +4,65 @@ from scipy import optimize
 
 ''' The following function sample and plot conventional surfaces '''
 
-## Sample from sphere
-def sample_spherical(num_points, dim=3, radius=1):
-    vec_list = [] 
-    for _ in range(num_points):
-        # Generate a random vector
-        vec = np.random.normal(0, 1, dim)
-        # Normalize and scale to desired radius
-        vec /= np.linalg.norm(vec, axis=0)
-        vec *= radius
-        vec_list.append(list(vec))
-    return vec_list
+""" Sample Data from a sphere.
+    Input
+    --------
+    num_points : integer, default 1000. Number of points to sample.
+    dim : integer, default 3. Dimension of sphere to sample.
+    radius : float, default 1. Radius of sphere to sample.
 
-## Sample from the torus
-def sample_torus(num_points, R=3, r=1):
-    assert R>r, "This torus will self intersect. Choose R>r."
-    point_list = []
-    for _ in range(num_points):
-        #Try uniform?
-        theta = 2*np.pi*np.random.normal(0,1)
-        phi = 2*np.pi*np.random.normal(0,1)
-        x = (R+r*np.cos(phi))*np.cos(theta)
-        y = (R+r*np.cos(phi))*np.sin(theta)
-        z = r*np.sin(phi)
-        point_list.append([x,y,z])
-    return point_list
+    Returns
+    ---------
+    ndarray of shape (num_points, dim)
 
-## Sample from the genus 2 torus
-'''this could be extended to genus n torus, perhaps we could work on that later
+"""
+def sample_sphere(num_points=1000, dim=3, radius=1):
+    assert dim > 0 and radius > 0, f'Dimension and radius must be positive.'
+    points = np.random.normal(size=(num_points, dim))
+    pts = radius * (points.T / np.linalg.norm(points, axis=1)).T
+    return pts
+
+""" Sample data from the 2-dimensional torus embedded in R^3 with usual
+parametrized embedding.
+    Input
+    -------
+    num_points : integer, default 1000. Number of points to sample.
+    R : float, default 3. Outer radius of torus.
+    r : float, default 1. Inner radius of torus. 
+            Note that r must be less than R.
+    Returns
+    -------
+    ndarray of shape (num_points, 3)
+"""
+def sample_torus(num_points=1000, R=3, r=1):
+    assert R>r, f"This torus will self intersect. Choose R > r. Currently R={R} and r={r}."
+    thetas = 2 * np.pi * np.random.normal(size=(num_points,))
+    phis = 2 * np.pi * np.random.normal(size=(num_points,))
+    xs = (R+r*np.cos(phis))*np.cos(thetas)
+    ys = (R+r*np.cos(phis))*np.sin(thetas)
+    zs = r*np.sin(phis)
+    points = np.vstack((xs,ys,zs)).T
+    return points
+
+""" Sample data from the genus 2 torus embedded in R^3.
+Note: This can be extended to n-torus. 
 In general, the polynomial
 f(x) = \prod_{i=1}^n (x-(i-1))(x-i) = x(x-1)^2(x-2)^2 ... (x-(n-1))^2(x-n)
 has roots at x = 0,1,...,n.
 Then we let g(x,y) = f(x)+y^2 so that the set of points g(x,y)=0 forms n connected loops. Define
 F(x,y,z) = g(x,y)^2 + z^2 - r^2
-so for small enough r, the level set F(x,y,z)=0 is an genus n torus.
-'''
+so for small enough r, the level set F(x,y,z)=0 is a torus of genus n.
+
+    Input
+    -------
+    num_points : integer, default 1000. Number of points to sample.
+    thickness : float, default 0.1. Value to determine thickenss of the shape in R^3.
+        Should be kept small.
+
+    Return
+    -------
+    ndarray of shape (num_points, 3)
+"""
 def sample_g2torus(num_points, thickness=0.1):
     # Implicit function which defines the genus 2 torus
     def F(x,y,z,e):
@@ -59,14 +83,22 @@ def sample_g2torus(num_points, thickness=0.1):
                 point_list.append([xi,yi,zi])
                 if len(point_list) == num_points:
                     break
-    return point_list
+    return np.asarray(point_list)
 
-## Quick graph of points
-'I should edit this to include more arguments for plotly'
-def graph_sample(point_list):
-    xi = [point_list[i][0] for i in range(len(point_list))]
-    yi = [point_list[i][1] for i in range(len(point_list))]
-    zi = [point_list[i][2] for i in range(len(point_list))]
-    
-    graph = go.Figure(data=[go.Scatter3d(x=xi,y=yi,z=zi,mode='markers')])
+''' Simple graph function to graph samples in R^2 or R^3.
+    Input
+    -------
+    data : ndarray. Should have shape (n, 2) or (n, 3) where n is the number of data points.
+
+    Returns
+    -------
+    plotly.graph_objects.figure 
+
+'''
+def graph_sample(data):
+    if data.shape[1] == 2:
+        graph = go.Figure(data=[go.Scatter(x=data[:,0], y=data[:,1], mode='markers')])
+    if data.shape[1] == 3:
+        graph = go.Figure(data=[go.Scatter3d(x=data[:,0], y=data[:,1], z=data[:,2], mode='markers')])
+    graph.update_traces(marker=dict(size=2))
     return graph.show()
