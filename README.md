@@ -5,7 +5,7 @@ It uses a range of parameters for constructing a graph from data chosen by the u
 to construct a mapper representation of $X$ one must choose the following parameters.
 
 1. A filter function $f\colon X\to \mathbb{R}^m$ where $m\leq d$, e.g. projections through principle component analysis \[2\].
-2. An open cover $\mathcal{U}$ of $f(X)\subseteq\mathbb{R}^m$, e.g. uniform hypercubes $\mathcal{U} = \{U_\alpha\}_{\alpha\in A}$ where $U_\alpha = \prod_{i=1}^m [a_{\alpha,i},b_{\alpha,i}]$ for $a_{\alpha,i},b_{\alpha,i}\in\mathbb{R}$.
+2. An open cover $\mathcal{U}$ of $f(X)\subseteq\mathbb{R}^m$, e.g. uniform hypercubes $\mathcal{U} = \\{U_\alpha\\}$ where $U_\alpha = \prod_{i=1}^m \[a_{\alpha,i},b_{\alpha,i}\]$ for $a_{\alpha,i},b_{\alpha,i}\in\mathbb{R}$.
 3. A clustering algorithm, e.g. DBSCAN \[3\].
 
 <img src="figures/hand-mapper.png" alt="drawing" width="500"/>
