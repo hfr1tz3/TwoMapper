@@ -4,7 +4,7 @@ The mapper algorithm is an unsupervised clustering algorithm used for used for d
 It uses a range of parameters for constructing a graph from data chosen by the user. For a data set $X$,
 to construct a mapper representation of $X$ one must choose the following parameters.
 
-1. A filter function $f\colon X\to \mathbb{R}^m$ where $m\leq d$, e.g. projections through principle component analysis \[2\].
+1. A filter function $f\colon X\to \mathbb{R}^m$ where $m\leq d$, e.g. projections through principle component analysis (PCA) \[2\].
 2. An open cover $\mathcal{U}$ of $f(X)\subseteq\mathbb{R}^m$, e.g. uniform hypercubes $\mathcal{U} = \\{U_\alpha\\}$ where $U_\alpha = \prod_{i=1}^m \[a_{\alpha,i},b_{\alpha,i}\]$ for $a_{\alpha,i},b_{\alpha,i}\in\mathbb{R}$.
 3. A clustering algorithm, e.g. DBSCAN \[3\].
 
@@ -19,7 +19,11 @@ we can construct a mapper graph from the 2-dimsnional nerve, called **2-Mapper**
 ![2-mapper](figures/torus_2mapper.jpg)
 
 2-Mapper is a simplical complex approximation of $X$. This can give visualization to density changes within a point cloud, 
-and allow use to compute some approximate betti-1 values. To find the optimal cover choice, we implement multiscale mapper \[4\] to identify how cover choice changes the 2-mapper graph structure. 
+and allow use to compute some approximate betti-1 values. We implement multiscale mapper \[4\] to identify how cover choice changes the 2-mapper structure by using persistence barcodes/diagrams.
+
+![multiscale-2-mapper](figures/kb-multiscale.png)
+
+See **2mapperTutorial.ipynb** and **Multiscale2mapper.ipynb** for tutorials for 2-mapper and multiscale 2-mapper, respectively.
 
 
 References
